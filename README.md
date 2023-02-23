@@ -31,10 +31,3 @@ Expedition data online http://metadata.nmdc.no/metadata-api/landingpage/16316eb3
    * pre_processing calculates the default values needed before running all data
    * wave_processing includes all functions needed to calculate the wave parameters
    * run_all_data goes trough each 30minute file, calculates the wave parameters and returns everything in a dictionary
-- Data includes files from June 2021 - December 2022. The files are sorted into three periods and seperated at harbour and sailing. 
-   * data includes all sailing days in the period October 2021 - December 2022
-   * old_data includes all sailing and harbor days in the period June 2021 - August 2021
-   * old_harbour includes all harbour days in the period September 2021 - Oktober 2021
-   * harbour includes all harbour days in the period November 2021 - April 2022
-   * new_harbour includes all harbour days in the period September 2022 - December 2022
-   * bad_data includes some files that are not used
