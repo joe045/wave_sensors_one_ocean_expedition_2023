@@ -1,5 +1,5 @@
 # wave_sensors_one_ocean_expedition_2023
-Processing of the wave sensor data obtained during the One Ocean Expedition
+Processing of the wave data obtained during the One Ocean Expedition
 
 Expedition plan https://oneoceanexpedition.com
 
@@ -7,7 +7,7 @@ Expedition data online http://metadata.nmdc.no/metadata-api/landingpage/16316eb3
 
 # Sensor Composition
 - 3 Altimeters
-    * 2 ultrasonic altimeters: Automation Products Group Inc, Ultrasonic IRU-3433-C60
+    * 2 ultrasonic altimeters: Automation Products Group Inc, IRU-3433-C60
     * 1 radar altimeter: Automation Products Group Inc, True EchoT M Pulse Radar Level Transmit- ter PRL-050-V024-C4-SS-S6-BF-F
 - 3 IMUs:
     * 1 main IMU: VectorNav Technologies, VN-100
@@ -21,9 +21,9 @@ Expedition data online http://metadata.nmdc.no/metadata-api/landingpage/16316eb3
 - 16.06.2021: Wave system mounted on Statsraad Lehmkuhl
 - 20.08.2021: Expedition start
 - 11.10.2021: Extra IMUs mounted
-- 14.01.2022: Extra IMU1 destroyed
+- 14.01.2022: Extra IMU1 destroyed 
 - 05.05.2022: Extra IMU0 destroyed and system breakdown
-- 15.09.2022: Wave system fixed
+- 15.09.2022: Wave system fixed by replacing processing unit and Main IMU
 - 15.04.2022: Expedition end
 
 # Organisation
