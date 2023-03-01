@@ -31,3 +31,6 @@ Expedition data online http://metadata.nmdc.no/metadata-api/landingpage/16316eb3
    * pre_processing calculates the default values needed before running all data
    * wave_processing includes all functions needed to calculate the wave parameters
    * run_all_data goes trough each 30minute file, calculates the wave parameters and returns everything in a dictionary
+- Additional data includes data needed for calculation of the doppler effect
+   * all_pos.csv includes ship position, ship speed and heading, wind speed and direction with minutely resolution
+   * wave_direction.csv includes wave direction with hourly resolution    
