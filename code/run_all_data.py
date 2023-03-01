@@ -9,6 +9,7 @@ Created on Thu Jun  2 12:06:18 2022
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from scipy.stats import circmean
 import os
 
 from wave_processing import *
@@ -238,11 +239,13 @@ def correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir):
     theta=wave_dir-heading
     v_o=v_ship*np.cos(theta/360*2*np.pi)
     #print('freq',freq)
-    corr_freq_plus=(g/(4*np.pi*v_o)+np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)-freq)))
-    corr_freq_minus=(g/(4*np.pi*v_o)-np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)-freq)))
+    #corr_freq_plus=(g/(4*np.pi*v_o)+np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)-freq)))
+    #corr_freq_minus=(g/(4*np.pi*v_o)-np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)-freq)))
+    corr_freq_plus=(-g/(4*np.pi*v_o)+np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)+freq)))
+    corr_freq_minus=(-g/(4*np.pi*v_o)-np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)+freq)))
     return corr_freq_plus,corr_freq_minus
 
-def load_ship_stats(filepath="/Users/judiththuolberg/Master/Pos/all_pos.csv"):
+def load_ship_stats(filepath="/Users/judiththuolberg/Master/Additional_data/all_pos.csv"):
     """Loads the ships positions, wind_direction, heading, wind and speed in knts from a .csv file and returns it in a dict"""
     df = pd.read_csv(filepath)
     ret_dict={}
@@ -260,7 +263,7 @@ def load_ship_stats(filepath="/Users/judiththuolberg/Master/Pos/all_pos.csv"):
     ret_dict["datetime"]=np.array((ret_dict["datetime"]))
     return ret_dict
 
-def load_wave_direction(filepath="/Users/judiththuolberg/Master/Pos/wave_direction.csv"):
+def load_wave_direction(filepath="/Users/judiththuolberg/Master/Additional_data/wave_direction.csv"):
     """Loads the ECWAM wave direction from a .csv file and returns it in a dict"""
     df = pd.read_csv(filepath)
     ret_dict={}
@@ -441,19 +444,20 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
     #print("t_start:",t_start,"t_end:",t_end)
     kts_array=ship_dict["kts"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
     heading_array=ship_dict["heading"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
-    wave_dir_array=ship_dict["wind_dir"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
+    wind_dir_array=ship_dict["wind_dir"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
     wind_array=ship_dict["wind"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
     lon_array=ship_dict["lon"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
     lat_array=ship_dict["lat"][np.where(((ship_dict["datetime"]>t_start)&(ship_dict["datetime"]<t_end)))]
 
     kts=np.mean(kts_array)
-    heading=np.median(heading_array)   #need to calculate this better for values betwen 0 and 360
-    wind_dir=np.median(wave_dir_array) #need to calculate this better for values betwen 0 and 360
     wind=np.mean(wind_array)
     lon=np.mean(lon_array)
     lat=np.mean(lat_array)
     
-    #extracting one value within from the dataset with 60min resolution
+    heading=circmean(heading_array,high=360,low=0)   #need to calculate circular mean for values betwen 0 and 360
+    wind_dir=circmean(wind_dir_array,high=360,low=0) #need to calculate circular mean for values betwen 0 and 360
+    
+    #extracting one value within the dataset with 60min resolution
     delta_t_start=np.abs(wave_dict["datetime"]-t_start)
     closest_t_start=np.min(delta_t_start)
     delta_t_end=np.abs(wave_dict["datetime"]-t_end)
@@ -473,10 +477,6 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
     
     if kts == 0:
         kts += 0.1
-        
-    #print("heading=",heading)
-    #print("kts=",kts)
-    #print("wave_dir=",wave_dir)
         
     dt_sec=(t_end-t_start).seconds
     times_180=dt_sec//180 #often same as length of kts_array = 20/5 so seg_secs = 180 is used
@@ -665,7 +665,7 @@ def get_wave_data_all_files():
     """Goes through folders and files in base_path, computes the parameters with get_wave_data_one_file()
     and gathers all the relevant information on wave parameters, ship's position, wind, speed and heading in one dict"""
     
-    base_path = "/Users/judiththuolberg/Master/data"
+    base_path = "/Users/judiththuolberg/Master/all_data/data"
     
     ship_dict=load_ship_stats()
     wave_dict=load_wave_direction()
