@@ -1,14 +1,19 @@
-# TODO:
-# - test and validate
-# - use spectral moments instead
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu June 2 12:06:18 2022
+
+@author: fabianmk
+@edited by: judiththuolberg
+"""
 
 import compress_pickle as cpkl
 import arduino_logging
 from datetime import datetime
 import math
 import numpy as np
-from scipy import signal
-import matplotlib.pyplot as plt
+import scipy.signal as signal
+
 
 def round_to_ending_01(number_in):
     """Function used in generate_common_time_base"""
@@ -26,9 +31,18 @@ def generate_common_timebase(time_base_1, time_base_2, time_base_3, time_base_4)
     common_time_base = np.arange(min_common_time, max_common_time, 0.1)
 
     return common_time_base
-
-
+    
+def clockwise_plus_minus_180_to_counterclockwise_plus_minus_180(pm_180):
+    return -pm_180    
+    
+def counterclockwise_360_to_counterclockwise_plus_minus_180(cc_360):
+    if cc_360 > 180:
+        return cc_360-360
+    else:
+        return cc_360  
+    
 def load_data_dump(path_to_file, show_interpolation=False, resistor_values=160.0):
+    #print('dump new')
     """Load a data file, and extract all raw the data, ready to use as a dictionary"""
 
     # load compressed data
@@ -132,6 +146,8 @@ def load_data_dump(path_to_file, show_interpolation=False, resistor_values=160.0
         dict_data["list_time_series"]["gauges"]["gauge_ug1_meters"].append(height_1)
         dict_data["list_time_series"]["gauges"]["gauge_ug2_meters"].append(height_2)
         dict_data["list_time_series"]["gauges"]["gauge_radar1_meters"].append(height_3)
+    
+        
 
     for cnt in range(len(dict_data["list_time_series"]["IMU"]["datetime"])):
         dict_data["list_time_series"]["IMU"]["timestamps"].append(datetime.timestamp(dict_data["list_time_series"]["IMU"]["datetime"][cnt]))
@@ -188,14 +204,38 @@ def load_data_dump(path_to_file, show_interpolation=False, resistor_values=160.0
             common_time_base,dict_data["list_time_series"][imu]["timestamps"],
             dict_data["list_time_series"][imu]["yaw"])
             
+            if imu == "extraIMU_0" or imu == "extraIMU_1":
+                cnt = -1
+                for i in dict_data["list_time_series_interpolated"][imu]["yaw"]:
+                    cnt+=1    
+                    dict_data["list_time_series_interpolated"][imu]["yaw"][cnt]=counterclockwise_360_to_counterclockwise_plus_minus_180(dict_data["list_time_series_interpolated"][imu]["yaw"][cnt])
+            
+            if imu == "IMU":
+                cnt = -1
+                for i in dict_data["list_time_series_interpolated"][imu]["yaw"]:
+                    cnt+=1    
+                    dict_data["list_time_series_interpolated"][imu]["yaw"][cnt]=clockwise_plus_minus_180_to_counterclockwise_plus_minus_180(dict_data["list_time_series_interpolated"][imu]["yaw"][cnt])
+                
+                cnt = -1    
+                for i in dict_data["list_time_series_interpolated"][imu]["pitch"]:
+                    cnt+=1    
+                    dict_data["list_time_series_interpolated"][imu]["pitch"][cnt]=-dict_data["list_time_series_interpolated"][imu]["pitch"][cnt]
+                    
+                cnt = -1
+                for i in dict_data["list_time_series_interpolated"][imu]["accel_D"]:
+                    cnt+=1    
+                    dict_data["list_time_series_interpolated"][imu]["accel_D"][cnt]=-dict_data["list_time_series_interpolated"][imu]["accel_D"][cnt]       
+            
         else:
 
             dict_data["list_time_series_interpolated"][imu]["accel_D"]=[]
             for cnt in range(len(common_time_base)):
-                dict_data["list_time_series_interpolated"][imu]["accel_D"].append(np.nan) #99999
+                dict_data["list_time_series_interpolated"][imu]["accel_D"].append(np.nan) 
             dict_data["list_time_series_interpolated"][imu]["pitch"]=dict_data["list_time_series_interpolated"][imu]["accel_D"]*1
             dict_data["list_time_series_interpolated"][imu]["roll"]=dict_data["list_time_series_interpolated"][imu]["accel_D"]*1
             dict_data["list_time_series_interpolated"][imu]["yaw"]=dict_data["list_time_series_interpolated"][imu]["accel_D"]*1
+    
+    
     
     dict_data["list_time_series_interpolated"]["gauges"]["gauge_ug1_meters"] = np.interp(
         common_time_base,
@@ -212,34 +252,16 @@ def load_data_dump(path_to_file, show_interpolation=False, resistor_values=160.0
         dict_data["list_time_series"]["gauges"]["timestamps"],
         dict_data["list_time_series"]["gauges"]["gauge_radar1_meters"]
     )
-    
+    cnt = -1
+    radar_mean = np.mean(dict_data["list_time_series_interpolated"]["gauges"]["gauge_radar1_meters"])
+    for i in dict_data["list_time_series_interpolated"]["gauges"]["gauge_radar1_meters"]:
+        cnt+=1
+        radar_wrong_fluctuation = i - radar_mean
+        radar_right_fluctuation = -radar_wrong_fluctuation
+        radar = radar_right_fluctuation + radar_mean 
+        dict_data["list_time_series_interpolated"]["gauges"]["gauge_radar1_meters"][cnt] = radar
     
     return dict_data
-
-def welch_spectrum(data_in, sampling_rate=10.0, overlap_proportion=0.9, segment_duration_seconds=400, smooth=True):
-    """Compute the power spectrum from frequency. Function used in run_you_fools"""    
-    #HAnning
-    nperseg = int(segment_duration_seconds * sampling_rate)
-    noverlap = int(overlap_proportion * nperseg)
-    #print(segment_duration_seconds)
-    #print(sampling_rate)
-    #print(overlap_proportion)
-    #print(nperseg)
-    #print(noverlap)
-    
-    f, Pxx_den = signal.welch(data_in, sampling_rate, nperseg=nperseg, noverlap=noverlap)
-
-    if smooth:
-        #print('smoothing')
-        Pxx_den = signal.savgol_filter(Pxx_den, window_length=9, polyorder=2)
-
-    if False:
-        plt.figure()
-        plt.plot(f, Pxx_den)
-        plt.show()
-
-    return(f, Pxx_den)
-
 
 def fft_der_1(data,sampling_freq):
     """Take one derivative in Fourier space"""
@@ -279,30 +301,36 @@ def fft_int_1(data,sampling_freq):
     int_1=fft_der_1(fft_int_2(data,sampling_freq),sampling_freq)
     
     return int_1
-    print(6,"/",18)
 
 def fft_int_2(data,sampling_freq):
     """Take double integral in Fourier space. Function used in run_you_fools"""
-    # calculate fft, filter, and then ifft to get heights
     ACC_SIZE = data.shape[0]
     
     # suppress divide by 0 warning
     np.seterr(divide='ignore')
 
     F = np.fft.fft(data)
-    freq = np.fft.fftfreq(ACC_SIZE, d=1.0 / sampling_freq)
+    freq = np.fft.fftfreq(ACC_SIZE, d=1.0 / sampling_freq) 
     weights = -1.0/((2*np.pi*freq)**2)
-    # need to do some filtering for low frequency (from Kohout)
-    f1 = 0.03
-    f2 = 0.04
     Ff = np.zeros_like(F)
-    ind = np.argwhere(np.logical_and(freq >= f1, freq <= f2))
-    Ff[ind] = F[ind] * 0.5 * (1 - np.cos(np.pi * (freq[ind] - f1) / (f2 - f1))) * weights[ind]
-    Ff[freq > f2] = F[freq > f2] * weights[freq > f2]
     
-    int_2=np.real(np.fft.ifft(2*Ff))
-   
+    #use same cutoff frequencies as wave oscillation    
+    fmax= 0.5
+    fmin = 0.05     
+    ind = np.argwhere(np.logical_and(freq >= fmin, freq <= fmax))
+    Ff[ind] = F[ind] * weights[ind]
+    int_2=np.real(np.fft.ifft(2*Ff))     
+ 
     return int_2
+
+def welch_spectrum(data_in, sampling_rate=10.0, overlap_proportion=0.9, segment_duration_seconds=180):
+    """Compute the power spectrum from frequency. Function used in run_you_fools"""    
+    nperseg = int(segment_duration_seconds * sampling_rate)
+    noverlap = int(overlap_proportion * nperseg)
+
+    f, Pxx_den = signal.welch(data_in, sampling_rate, nperseg=nperseg, noverlap=noverlap)
+
+    return(f, Pxx_den)
 
 def find_index_of_fist_element_greater_than_value(array, value):
     """Function used in compute_wave_spectrum_moments"""    
@@ -312,30 +340,14 @@ def find_index_of_fist_element_greater_than_value(array, value):
     else:
         return indexes_where_greater_than[0]
 
-def compute_wave_spectrum_moments(list_frequencies, wave_spectrum, min_freq=0.05, max_freq=0.5, PERFORM_KET_PLOTS=False):
+def compute_wave_spectrum_moments(list_frequencies, wave_spectrum, min_freq=0.05, max_freq=0.5):
     """Compute the moments of the wave spectrum. Function used in run_you_fools"""
 
     min_ind = find_index_of_fist_element_greater_than_value(list_frequencies, min_freq)
     max_ind = find_index_of_fist_element_greater_than_value(list_frequencies, max_freq)
 
     wave_spectrum = wave_spectrum[min_ind:max_ind]
-    list_frequencies = list_frequencies[min_ind:max_ind]
-
-    if PERFORM_KET_PLOTS:
-        plt.figure()
-        plt.plot(list_frequencies, wave_spectrum)
-        plt.show()
-
-    omega = 2 * np.pi * list_frequencies
-    f=list_frequencies
-    
-    # M0 = np.trapz(wave_spectrum, x=omega)
-    # M1 = np.trapz(wave_spectrum * (omega), x=omega)
-    # M2 = np.trapz(wave_spectrum * (omega**2), x=omega)
-    # M3 = np.trapz(wave_spectrum * (omega**3), x=omega)
-    # M4 = np.trapz(wave_spectrum * (omega**4), x=omega)
-    # MM1 = np.trapz(wave_spectrum * (omega**(-1)), x=omega)
-    # MM2 = np.trapz(wave_spectrum * (omega**(-2)), x=omega)
+    f = list_frequencies[min_ind:max_ind]
     
     M0 = np.trapz(wave_spectrum, x=f)
     M1 = np.trapz(wave_spectrum * (f), x=f)
@@ -347,8 +359,4 @@ def compute_wave_spectrum_moments(list_frequencies, wave_spectrum, min_freq=0.05
 
     return(M0, M1, M2, M3, M4, MM1, MM2)
 
-
-
-
-
-
+         
