@@ -19,16 +19,15 @@ Expedition data online http://metadata.nmdc.no/metadata-api/landingpage/16316eb3
 
 # Timeline
 - 16.06.2021: Wave system mounted on Statsraad Lehmkuhl
-- 20.08.2021: Expedition start
-- 11.10.2021: Extra IMUs mounted
-- 14.01.2022: Extra IMU1 destroyed 
-- 05.05.2022: Extra IMU0 destroyed and system breakdown
-- 15.09.2022: Wave system fixed by replacing processing unit and Main IMU
-- 15.04.2022: Expedition end
+- 20.08.2021: Expedition start in Arendal
+- 11.10.2021: extra IMUs mounted
+- 14.01.2022: extra IMU1 destroyed 
+- 05.05.2022: extra IMU0 destroyed and system breakdown
+- 15.09.2022: Wave system fixed by replacing processing unit and main IMU
+- 15.04.2023: Expedition end in Bergen
 
 # Organisation
 - Code includes processing of the data
-   * pre_processing calculates the default values needed before running all data
    * wave_processing includes all functions needed to calculate the wave parameters
    * run_all_data goes trough each 30minute file, calculates the wave parameters and returns everything in a dictionary
 - Additional data includes wind and the data needed for calculation of the doppler effect
