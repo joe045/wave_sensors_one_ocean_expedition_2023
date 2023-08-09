@@ -13,7 +13,7 @@ Expedition data online http://metadata.nmdc.no/metadata-api/landingpage/16316eb3
     * 1 main IMU: VectorNav Technologies, VN-100 https://www.vectornav.com/products/detail/vn-
     * 2 extra IMUs: Adafruit, ISM330DHCX + LIS3MDL FeatherWing https://www.adafruit.com/product/4569
 - Processing unit: 
-    * Raspberry Pi 4 Model B 8GB datasheets.raspberrypi.com/rpi4/raspberry-pi-4-product-brief.pdf
+    * Raspberry Pi 4 Model B 8GB https://datasheets.raspberrypi.com/rpi4/raspberry-pi-4-product-brief.pdf
     * Arduino Due board https://store.arduino.cc/products/arduino-due
     * Redboard https://www.sparkfun.com/products/15444
 
