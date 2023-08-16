@@ -24,9 +24,15 @@ def correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir):
     v_ship=kts_to_ms(kts)
     theta=wave_dir-heading
     v_o=v_ship*np.cos(np.deg2rad(theta))
-    corr_freq_plus=(g/(4*np.pi*v_o)+np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)-freq)))
-    corr_freq_minus=(g/(4*np.pi*v_o)-np.sqrt(g/(2*np.pi*v_o)*(g/(8*np.pi*v_o)-freq)))  
-    return corr_freq_plus,corr_freq_minus
+    c=g/(2*np.pi*freq)
+    if v_0 > 0:
+        corr_freq=-(g-np.sqrt(g**(2)+(8*np.pi*v_o*g*freq)))/(4*np.pi*v_o)
+    elif v_o < 0:
+        if freq < abs(g/(8*np.pi*v_o)):
+            corr_freq=-(g+np.sqrt(g**(2)+(8*np.pi*v_o*g*freq)))/(4*np.pi*v_o)
+        else:
+            corr_freq=np.nan
+    return corr_freq
 
 def load_ship_stats(filepath="/Users/judiththuolberg/Master/Additional_data/all_pos.csv"):
     """Loads the ships position, heading, wind and speed in knts from a .csv file and returns it in a dict"""
@@ -76,7 +82,8 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
     
     #get the vertical positions of the VN100 by two times integration
     sample_freq=10
-    z_accel=accel_D-np.mean(accel_D)
+    g=9.81
+    z_accel=accel_D-g
     z_pos=fft_int_2(z_accel,sample_freq)
     
     #due to Fourier transformations the data is cut off in beginning and end
@@ -198,11 +205,6 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
         ind_closest_t=np.argmin(delta_t_end)
         wave_dir=wave_dict["mdir"][ind_closest_t]
     
-    #turn the wave direction from meteorologic to oceanographic convention
-    wave_dir+=180
-    if wave_dir > 360:
-        wave_dir-=180    
-    
     #avoid dividing with zero for doppler correction    
     if wave_dir == 0:
         wave_dir +=0.1    
@@ -229,7 +231,7 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
     #retain only frequencies relevant for ocean waves
     fmin = 0.05
     fmax = 0.5
-    
+
     Pxx_ug1=Pxx_ug1[np.where((freqs_ug1 >= fmin)&(freqs_ug1<= fmax))]
     Pxx_ug2=Pxx_ug2[np.where((freqs_ug2 >= fmin)&(freqs_ug2<= fmax))]
     Pxx_radar=Pxx_radar[np.where((freqs_radar >= fmin)&(freqs_radar<= fmax))]
@@ -238,62 +240,45 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
     freqs_ug2=freqs_ug2[np.where((freqs_ug2 >= fmin)&(freqs_ug2<= fmax))]
     freqs_radar=freqs_radar[np.where((freqs_radar >= fmin)&(freqs_radar<= fmax))]
 
-    #calculate wave spectrum for Doppler shifted frequencies
-    Pxx_DoppShift_ug1_pos=Pxx_ug1*1
-    Pxx_DoppShift_ug2_pos=Pxx_ug2*1
-    Pxx_DoppShift_radar_pos=Pxx_radar*1
+    #calculate wave spectrum for the Doppler shifted frequencies
+    Pxx_DoppShift_ug1=Pxx_ug1*1
+    Pxx_DoppShift_ug2=Pxx_ug2*1
+    Pxx_DoppShift_radar=Pxx_radar*1
     
-    Pxx_DoppShift_ug1_neg=Pxx_ug1*1
-    Pxx_DoppShift_ug2_neg=Pxx_ug2*1
-    Pxx_DoppShift_radar_neg=Pxx_radar*1
-    
-    freqs_DoppShift_ug1_pos=[]
-    freqs_DoppShift_ug2_pos=[]
-    freqs_DoppShift_radar_pos=[]
-    
-    freqs_DoppShift_ug1_neg=[]
-    freqs_DoppShift_ug2_neg=[]
-    freqs_DoppShift_radar_neg=[]
+    freqs_DoppShift_ug1=[]
+    freqs_DoppShift_ug2=[]
+    freqs_DoppShift_radar=[]
     
     for freq in freqs_ug1:
-        freq_corr_pos,freq_corr_neg=correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir)
-        freqs_DoppShift_ug1_pos.append(freq_corr_pos)
-        freqs_DoppShift_ug1_neg.append(freq_corr_neg)
+        freq_corr=correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir)
+        freqs_DoppShift_ug1.append(freq_corr)
     
     for freq in freqs_ug2:
-        freq_corr_pos,freq_corr_neg=correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir)
-        freqs_DoppShift_ug2_pos.append(freq_corr_pos)
-        freqs_DoppShift_ug2_neg.append(freq_corr_neg)  
-    
+        freq_corr=correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir)
+        freqs_DoppShift_ug2.append(freq_corr)
+              
     for freq in freqs_radar:
-        freq_corr_pos,freq_corr_neg=correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir)
-        freqs_DoppShift_radar_pos.append(freq_corr_pos)
-        freqs_DoppShift_radar_neg.append(freq_corr_neg) 
+        freq_corr=correct_freq_for_Doppler_effect(freq,kts,heading,wave_dir)
+        freqs_DoppShift_radar.append(freq_corr)
     
     #keep only non-nan values    
-    freqs_DoppShift_ug1_pos=np.array((freqs_DoppShift_ug1_pos))
-    Pxx_DoppShift_ug1_pos=Pxx_DoppShift_ug1_pos[np.isfinite(freqs_DoppShift_ug1_pos)]
-    freqs_DoppShift_ug1_pos=freqs_DoppShift_ug1_pos[np.isfinite(freqs_DoppShift_ug1_pos)]
+    freqs_DoppShift_ug1=np.array((freqs_DoppShift_ug1))
+    Pxx_DoppShift_ug1=Pxx_DoppShift_ug1[np.isfinite(freqs_DoppShift_ug1)]
+    freqs_DoppShift_ug1=freqs_DoppShift_ug1[np.isfinite(freqs_DoppShift_ug1)]
+    Pxx_DoppShift_ug1=Pxx_DoppShift_ug1[np.where((freqs_DoppShift_ug1 >= fmin)&(freqs_DoppShift_ug1<= fmax))]
+    freqs_DoppShift_ug1=freqs_DoppShift_ug1[np.where((freqs_DoppShift_ug1 >= fmin)&(freqs_DoppShift_ug1<= fmax))]
     
-    freqs_DoppShift_ug1_neg=np.array((freqs_DoppShift_ug1_neg))
-    Pxx_DoppShift_ug1_neg=Pxx_DoppShift_ug1_neg[np.isfinite(freqs_DoppShift_ug1_neg)]
-    freqs_DoppShift_ug1_neg=freqs_DoppShift_ug1_neg[np.isfinite(freqs_DoppShift_ug1_neg)]
-    
-    freqs_DoppShift_ug2_pos=np.array((freqs_DoppShift_ug2_pos))
-    Pxx_DoppShift_ug2_pos=Pxx_DoppShift_ug2_pos[np.isfinite(freqs_DoppShift_ug2_pos)]
-    freqs_DoppShift_ug2_pos=freqs_DoppShift_ug2_pos[np.isfinite(freqs_DoppShift_ug2_pos)]
-    
-    freqs_DoppShift_ug2_neg=np.array((freqs_DoppShift_ug2_neg))
-    Pxx_DoppShift_ug2_neg=Pxx_DoppShift_ug2_neg[np.isfinite(freqs_DoppShift_ug2_neg)]
-    freqs_DoppShift_ug2_neg=freqs_DoppShift_ug2_neg[np.isfinite(freqs_DoppShift_ug2_neg)]
+    freqs_DoppShift_ug2=np.array((freqs_DoppShift_ug2))
+    Pxx_DoppShift_ug2=Pxx_DoppShift_ug2[np.isfinite(freqs_DoppShift_ug2)]
+    freqs_DoppShift_ug2=freqs_DoppShift_ug2[np.isfinite(freqs_DoppShift_ug2)]
+    Pxx_DoppShift_ug2=Pxx_DoppShift_ug2[np.where((freqs_DoppShift_ug2 >= fmin)&(freqs_DoppShift_ug2<= fmax))]
+    freqs_DoppShift_ug2=freqs_DoppShift_ug2[np.where((freqs_DoppShift_ug2 >= fmin)&(freqs_DoppShift_ug2<= fmax))]
 
-    freqs_DoppShift_radar_pos=np.array((freqs_DoppShift_radar_pos)) 
-    Pxx_DoppShift_radar_pos=Pxx_DoppShift_radar_pos[np.isfinite(freqs_DoppShift_radar_pos)]
-    freqs_DoppShift_radar_pos=freqs_DoppShift_radar_pos[np.isfinite(freqs_DoppShift_radar_pos)]
-    
-    freqs_DoppShift_radar_neg=np.array((freqs_DoppShift_radar_neg)) 
-    Pxx_DoppShift_radar_neg=Pxx_DoppShift_radar_neg[np.isfinite(freqs_DoppShift_radar_neg)]
-    freqs_DoppShift_radar_neg=freqs_DoppShift_radar_neg[np.isfinite(freqs_DoppShift_radar_neg)]
+    freqs_DoppShift_radar=np.array((freqs_DoppShift_radar)) 
+    Pxx_DoppShift_radars=Pxx_DoppShift_radar[np.isfinite(freqs_DoppShift_radar)]
+    freqs_DoppShift_radar=freqs_DoppShift_radar[np.isfinite(freqs_DoppShift_radar)]
+    Pxx_DoppShift_radar=Pxx_DoppShift_radar[np.where((freqs_DoppShift_radar >= fmin)&(freqs_DoppShift_radar<= fmax))]
+    freqs_DoppShift_radar=freqs_DoppShift_radar[np.where((freqs_DoppShift_radar >= fmin)&(freqs_DoppShift_radar<= fmax))]
     
     #calculate spectral moments and wave properties
     M0_ug1, M1_ug1, M2_ug1, M3_ug1, M4_ug1, MM1_ug1, MM2_ug1 = compute_wave_spectrum_moments(freqs_ug1,Pxx_ug1)
@@ -318,68 +303,27 @@ def get_wave_data_one_file(dict_data,ship_dict,wave_dict):
     Tzc_radar=np.sqrt(M0_radar/M2_radar)
     
     #calculate Dopller shifted spectral moments and wave properties
-    if freqs_DoppShift_ug1_pos.shape[0]>0:
-        M0_DoppShift_ug1, M1_DoppShift_ug1, M2_DoppShift_ug1, M3_DoppShift_ug1, M4_DoppShift_ug1, MM1_DoppShift_ug1, MM2_DoppShift_ug1 = compute_wave_spectrum_moments(freqs_DoppShift_ug1_pos,Pxx_DoppShift_ug1_pos)
-        Hs_DoppShift_ug1_pos= np.sqrt(M0_DoppShift_ug1) * 4.0
-        Tp_DoppShift_ug1_pos=1/(freqs_DoppShift_ug1_pos[np.nanargmax(Pxx_DoppShift_ug1_pos)])
-        Tme_DoppShift_ug1_pos=MM1_DoppShift_ug1/M0_DoppShift_ug1   
-        Tf_DoppShift_ug1_pos=M0_DoppShift_ug1/M1_DoppShift_ug1
-        Tzc_DoppShift_ug1_pos=np.sqrt(M0_DoppShift_ug1/M2_DoppShift_ug1)
+    if freqs_DoppShift_ug1.shape[0]>0:
+        M0_DoppShift_ug1, M1_DoppShift_ug1, M2_DoppShift_ug1, M3_DoppShift_ug1, M4_DoppShift_ug1, MM1_DoppShift_ug1, MM2_DoppShift_ug1 = compute_wave_spectrum_moments(freqs_DoppShift_ug1,Pxx_DoppShift_ug1)
+        Hs_DoppShift_ug1= np.sqrt(M0_DoppShift_ug1) * 4.0
+        Tp_DoppShift_ug1=1/(freqs_DoppShift_ug1[np.nanargmax(Pxx_DoppShift_ug1)])
+        Tme_DoppShift_ug1=MM1_DoppShift_ug1/M0_DoppShift_ug1   
+        Tf_DoppShift_ug1=M0_DoppShift_ug1/M1_DoppShift_ug1
+        Tzc_DoppShift_ug1=np.sqrt(M0_DoppShift_ug1/M2_DoppShift_ug1)
     
-        M0_DoppShift_ug2, M1_DoppShift_ug2, M2_DoppShift_ug2, M3_DoppShift_ug2, M4_DoppShift_ug2, MM1_DoppShift_ug2, MM2_DoppShift_ug2 = compute_wave_spectrum_moments(freqs_DoppShift_ug2_pos,Pxx_DoppShift_ug2_pos)
-        Hs_DoppShift_ug2_pos= np.sqrt(M0_DoppShift_ug2) * 4.0
-        Tp_DoppShift_ug2_pos=1/(freqs_DoppShift_ug2_pos[np.nanargmax(Pxx_DoppShift_ug2_pos)])
-        Tme_DoppShift_ug2_pos=MM1_DoppShift_ug2/M0_DoppShift_ug2    
-        Tf_DoppShift_ug2_pos=M0_DoppShift_ug2/M1_DoppShift_ug2
-        Tzc_DoppShift_ug2_pos=np.sqrt(M0_DoppShift_ug2/M2_DoppShift_ug2)
+        M0_DoppShift_ug2, M1_DoppShift_ug2, M2_DoppShift_ug2, M3_DoppShift_ug2, M4_DoppShift_ug2, MM1_DoppShift_ug2, MM2_DoppShift_ug2 = compute_wave_spectrum_moments(freqs_DoppShift_ug2,Pxx_DoppShift_ug2)
+        Hs_DoppShift_ug2= np.sqrt(M0_DoppShift_ug2) * 4.0
+        Tp_DoppShift_ug2=1/(freqs_DoppShift_ug2[np.nanargmax(Pxx_DoppShift_ug2)])
+        Tme_DoppShift_ug2=MM1_DoppShift_ug2/M0_DoppShift_ug2    
+        Tf_DoppShift_ug2=M0_DoppShift_ug2/M1_DoppShift_ug2
+        Tzc_DoppShift_ug2=np.sqrt(M0_DoppShift_ug2/M2_DoppShift_ug2)
  
-        M0_DoppShift_radar, M1_DoppShift_radar, M2_DoppShift_radar, M3_DoppShift_radar, M4_DoppShift_radar, MM1_DoppShift_radar, MM2_DoppShift_radar = compute_wave_spectrum_moments(freqs_DoppShift_radar_pos,Pxx_DoppShift_radar_pos)
-        Hs_DoppShift_radar_pos= np.sqrt(M0_DoppShift_radar) * 4.0
-        Tp_DoppShift_radar_pos=1/(freqs_DoppShift_radar_pos[np.nanargmax(Pxx_DoppShift_radar_pos)])
-        Tme_DoppShift_radar_pos=MM1_DoppShift_radar/M0_DoppShift_radar    
-        Tf_DoppShift_radar_pos=M0_DoppShift_radar/M1_DoppShift_radar
-        Tzc_DoppShift_radar_pos=np.sqrt(M0_DoppShift_radar/M2_DoppShift_radar)
-        
-    if freqs_DoppShift_ug1_neg.shape[0]>0:
-        M0_DoppShift_ug1, M1_DoppShift_ug1, M2_DoppShift_ug1, M3_DoppShift_ug1, M4_DoppShift_ug1, MM1_DoppShift_ug1, MM2_DoppShift_ug1 = compute_wave_spectrum_moments(freqs_DoppShift_ug1_neg,Pxx_DoppShift_ug1_neg)
-        Hs_DoppShift_ug1_neg= np.sqrt(M0_DoppShift_ug1) * 4.0
-        Tp_DoppShift_ug1_neg=1/(freqs_DoppShift_ug1_neg[np.nanargmax(Pxx_DoppShift_ug1_neg)])
-        Tme_DoppShift_ug1_neg=MM1_DoppShift_ug1/M0_DoppShift_ug1   
-        Tf_DoppShift_ug1_neg=M0_DoppShift_ug1/M1_DoppShift_ug1
-        Tzc_DoppShift_ug1_neg=np.sqrt(M0_DoppShift_ug1/M2_DoppShift_ug1)
-    
-        M0_DoppShift_ug2, M1_DoppShift_ug2, M2_DoppShift_ug2, M3_DoppShift_ug2, M4_DoppShift_ug2, MM1_DoppShift_ug2, MM2_DoppShift_ug2 = compute_wave_spectrum_moments(freqs_DoppShift_ug2_neg,Pxx_DoppShift_ug2_neg)
-        Hs_DoppShift_ug2_neg= np.sqrt(M0_DoppShift_ug2) * 4.0
-        Tp_DoppShift_ug2_neg=1/(freqs_DoppShift_ug2_neg[np.nanargmax(Pxx_DoppShift_ug2_neg)])
-        Tme_DoppShift_ug2_neg=MM1_DoppShift_ug2/M0_DoppShift_ug2    
-        Tf_DoppShift_ug2_neg=M0_DoppShift_ug2/M1_DoppShift_ug2
-        Tzc_DoppShift_ug2_neg=np.sqrt(M0_DoppShift_ug2/M2_DoppShift_ug2)
- 
-        M0_DoppShift_radar, M1_DoppShift_radar, M2_DoppShift_radar, M3_DoppShift_radar, M4_DoppShift_radar, MM1_DoppShift_radar, MM2_DoppShift_radar = compute_wave_spectrum_moments(freqs_DoppShift_radar_neg,Pxx_DoppShift_radar_neg)
-        Hs_DoppShift_radar_neg= np.sqrt(M0_DoppShift_radar) * 4.0
-        Tp_DoppShift_radar_neg=1/(freqs_DoppShift_radar_neg[np.nanargmax(Pxx_DoppShift_radar_neg)])
-        Tme_DoppShift_radar_neg=MM1_DoppShift_radar/M0_DoppShift_radar    
-        Tf_DoppShift_radar_neg=M0_DoppShift_radar/M1_DoppShift_radar
-        Tzc_DoppShift_radar_neg=np.sqrt(M0_DoppShift_radar/M2_DoppShift_radar)        
-    
-    if freqs_DoppShift_ug1_pos.shape[0]>0 or freqs_DoppShift_ug1_neg.shape[0]>0:   
-        Hs_DoppShift_ug1 = np.nanmax(np.append(Hs_DoppShift_ug1_pos,Hs_DoppShift_ug1_neg))
-        Tp_DoppShift_ug1 = np.nanmax(np.append(Tp_DoppShift_ug1_pos,Tp_DoppShift_ug1_neg))
-        Tme_DoppShift_ug1 = np.nanmax(np.append(Tme_DoppShift_ug1_pos,Tme_DoppShift_ug1_neg))
-        Tf_DoppShift_ug1 = np.nanmax(np.append(Tf_DoppShift_ug1_pos,Tf_DoppShift_ug1_neg))
-        Tzc_DoppShift_ug1 = np.nanmax(np.append(Tzc_DoppShift_ug1_pos,Tzc_DoppShift_ug1_neg))
-        
-        Hs_DoppShift_ug2 = np.nanmax(np.append(Hs_DoppShift_ug2_pos,Hs_DoppShift_ug2_neg))
-        Tp_DoppShift_ug2 = np.nanmax(np.append(Tp_DoppShift_ug2_pos,Tp_DoppShift_ug2_neg))
-        Tme_DoppShift_ug2 = np.nanmax(np.append(Tme_DoppShift_ug2_pos,Tme_DoppShift_ug2_neg))
-        Tf_DoppShift_ug2 = np.nanmax(np.append(Tf_DoppShift_ug2_pos,Tf_DoppShift_ug2_neg))
-        Tzc_DoppShift_ug2 = np.nanmax(np.append(Tzc_DoppShift_ug2_pos,Tzc_DoppShift_ug2_neg))
-        
-        Hs_DoppShift_radar = np.nanmax(np.append(Hs_DoppShift_radar_pos,Hs_DoppShift_radar_neg))
-        Tp_DoppShift_radar = np.nanmax(np.append(Tp_DoppShift_radar_pos,Tp_DoppShift_radar_neg))
-        Tme_DoppShift_radar = np.nanmax(np.append(Tme_DoppShift_radar_pos,Tme_DoppShift_radar_neg))
-        Tf_DoppShift_radar = np.nanmax(np.append(Tf_DoppShift_radar_pos,Tf_DoppShift_radar_neg))
-        Tzc_DoppShift_radar = np.nanmax(np.append(Tzc_DoppShift_radar_pos,Tzc_DoppShift_radar_neg)) 
+        M0_DoppShift_radar, M1_DoppShift_radar, M2_DoppShift_radar, M3_DoppShift_radar, M4_DoppShift_radar, MM1_DoppShift_radar, MM2_DoppShift_radar = compute_wave_spectrum_moments(freqs_DoppShift_radar,Pxx_DoppShift_radar)
+        Hs_DoppShift_radar= np.sqrt(M0_DoppShift_radar) * 4.0
+        Tp_DoppShift_radar=1/(freqs_DoppShift_radar[np.nanargmax(Pxx_DoppShift_radar)])
+        Tme_DoppShift_radar=MM1_DoppShift_radar/M0_DoppShift_radar    
+        Tf_DoppShift_radar=M0_DoppShift_radar/M1_DoppShift_radar
+        Tzc_DoppShift_radar=np.sqrt(M0_DoppShift_radar/M2_DoppShift_radar)
      
     else:
         Hs_DoppShift_ug1 = np.nan
